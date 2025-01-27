@@ -5,11 +5,14 @@ class HappyPage extends StatefulWidget {
   const HappyPage({super.key});
 
   @override
+  // ignore: library_private_types_in_public_api
   _HappyPageState createState() => _HappyPageState();
 }
 
 class _HappyPageState extends State<HappyPage> {
   final TextEditingController _reasonController = TextEditingController();
+  final TextEditingController _activityAnswerController =
+      TextEditingController();
   String motivationMessage =
       "Keep the happiness flowing! What made you happy today?";
   String taskMessage =
@@ -18,11 +21,30 @@ class _HappyPageState extends State<HappyPage> {
       "What's your favorite way to spread happiness to others?";
   String funAnswer = '';
   bool isTaskCompleted = false;
+  bool questionAnswered = false;
 
   // Tracking user responses
   String? userHappyReason = '';
   bool? taskCompleted;
-  bool? questionAnswered;
+
+  // List of happiness-boosting activities
+  final List<String> activities = [
+    "Take a walk in the park.",
+    "Listen to your favorite music.",
+    "Write down three things you're grateful for.",
+    "Watch a funny video.",
+    "Call a friend or family member.",
+    "Read an inspiring book or quote.",
+    "Try a new hobby or craft.",
+    "Practice mindfulness or meditate.",
+    "Dance to your favorite song.",
+    "Volunteer or help someone in need.",
+    "Plan your next weekend getaway.",
+    "Do a random act of kindness.",
+    "Take a nap or rest.",
+    "Go for a workout or yoga session.",
+    "Treat yourself to a favorite snack.",
+  ];
 
   @override
   void initState() {
@@ -46,7 +68,7 @@ class _HappyPageState extends State<HappyPage> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     prefs.setString('happy_reason', _reasonController.text);
     prefs.setBool('happy_task_completed', isTaskCompleted);
-    prefs.setBool('happy_question_answered', questionAnswered ?? false);
+    prefs.setBool('happy_question_answered', questionAnswered);
     prefs.setString('happy_fun_answer', funAnswer);
   }
 
@@ -79,10 +101,12 @@ class _HappyPageState extends State<HappyPage> {
         title: const Text('Keep Happy'),
         backgroundColor: Colors.amberAccent,
       ),
-      body: Padding(
+      body: SingleChildScrollView(
+        // Wrap the entire body in a SingleChildScrollView
         padding: const EdgeInsets.all(20.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment:
+              MainAxisAlignment.start, // Align the content to the top
           children: [
             const Text(
               "You're feeling Happy! Let's keep that energy going.",
@@ -145,7 +169,7 @@ class _HappyPageState extends State<HappyPage> {
               ),
             ),
             const SizedBox(height: 30),
-            if (questionAnswered ?? false)
+            if (questionAnswered)
               ElevatedButton(
                 onPressed: () {
                   setState(() {
@@ -155,6 +179,28 @@ class _HappyPageState extends State<HappyPage> {
                 },
                 child: const Text('Next Step'),
               ),
+            const SizedBox(height: 30),
+            const Text(
+              "Here are some activities to stay happy!",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            // Displaying activities
+            ListView.builder(
+              shrinkWrap: true, // To prevent overflow and fit the content
+              itemCount: activities.length,
+              itemBuilder: (context, index) {
+                return Card(
+                  margin: const EdgeInsets.symmetric(vertical: 5),
+                  child: ListTile(
+                    title: Text(
+                      activities[index],
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ),
+                );
+              },
+            ),
           ],
         ),
       ),

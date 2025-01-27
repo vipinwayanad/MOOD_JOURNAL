@@ -1,0 +1,67 @@
+{
+  "project_info": {
+    "project_number": "803397693598",
+    "project_id": "mood-journal-bac33",
+    "storage_bucket": "mood-journal-bac33.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:803397693598:android:d822740745a5a852b4cb8f",
+        "android_client_info": {
+          "package_name": "com.example.Mood_Journal"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCl9UbP7kgOum44Szz9H5ZeVmLHk3edkws"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:803397693598:android:afa826ec3ad11793b4cb8f",
+        "android_client_info": {
+          "package_name": "com.example.flutter_project"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCl9UbP7kgOum44Szz9H5ZeVmLHk3edkws"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:803397693598:android:2a664ef2c0773b62b4cb8f",
+        "android_client_info": {
+          "package_name": "com.example.my_new_project"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCl9UbP7kgOum44Szz9H5ZeVmLHk3edkws"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

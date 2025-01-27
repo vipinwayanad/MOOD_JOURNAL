@@ -47,6 +47,7 @@ class MoodGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    var happyPage = HappyPage();
     return Padding(
       padding: const EdgeInsets.all(20.0),
       child: GridView.count(

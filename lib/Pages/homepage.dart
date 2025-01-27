@@ -6,15 +6,48 @@ class MoodSelectionPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.blue.shade50,
+      extendBodyBehindAppBar:
+          true, // Make the background extend behind the AppBar
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text('Mood Journal'),
         centerTitle: true,
-        backgroundColor: Colors.blueAccent,
+        // ignore: deprecated_member_use
+        backgroundColor: Colors.blueAccent.withOpacity(0.8),
+        elevation: 0,
       ),
-      body: const Center(
-        child: MoodGrid(), // Use the MoodGrid widget for the mood selection
-      ),
+      body: const MoodSelectionBody(),
+    );
+  }
+}
+
+class MoodSelectionBody extends StatelessWidget {
+  const MoodSelectionBody({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        // Gradient background
+        Positioned.fill(
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.purpleAccent,
+                  Colors.blueAccent,
+                ],
+              ),
+            ),
+          ),
+        ),
+        // Content
+        const Center(
+          child: MoodGrid(),
+        ),
+      ],
     );
   }
 }
@@ -23,11 +56,12 @@ class MoodGrid extends StatefulWidget {
   const MoodGrid({super.key});
 
   @override
+  // ignore: library_private_types_in_public_api
   _MoodGridState createState() => _MoodGridState();
 }
 
 class _MoodGridState extends State<MoodGrid> {
-  String _selectedMood = ''; // Store the selected mood
+// Store the selected mood
 
   @override
   Widget build(BuildContext context) {
@@ -39,9 +73,16 @@ class _MoodGridState extends State<MoodGrid> {
           const Text(
             'How are you feeling today?',
             style: TextStyle(
-              fontSize: 26,
+              fontSize: 32,
               fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              color: Colors.white,
+              shadows: [
+                Shadow(
+                  blurRadius: 5.0,
+                  color: Colors.black,
+                  offset: Offset(2.0, 2.0),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 30),
@@ -69,6 +110,9 @@ class _MoodGridState extends State<MoodGrid> {
         Mood('😡', 'Angry'),
         Mood('😢', 'Sad'),
         Mood('😊', 'Happy'),
+        Mood('😐', 'Neutral'),
+        Mood('😎', 'Cool'),
+        Mood('🥳', 'Excited'),
       ];
 
   // Dialog to show the selected mood
@@ -98,29 +142,63 @@ class _MoodGridState extends State<MoodGrid> {
       onTap: () {
         _showMoodDialog(context, label);
       },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeInOut,
-        transform: Matrix4.identity()..scale(1.2), // Add temporary scale effect
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              emoji,
-              style: const TextStyle(
-                fontSize: 60,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          // ignore: deprecated_member_use
+          splashColor: Colors.blueAccent.withOpacity(0.4), // Ripple effect
+          highlightColor:
+              // ignore: deprecated_member_use
+              Colors.blueAccent.withOpacity(0.3), // Highlight effect
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            _showMoodDialog(context, label);
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            transform: Matrix4.identity()..scale(1.1), // Slight scale on hover
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                decoration: BoxDecoration(
+                  // ignore: deprecated_member_use
+                  color: Colors.white.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      // ignore: deprecated_member_use
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    Text(
+                      emoji,
+                      style: const TextStyle(
+                        fontSize: 60,
+                        fontFamily: 'EmojiOne',
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 10),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

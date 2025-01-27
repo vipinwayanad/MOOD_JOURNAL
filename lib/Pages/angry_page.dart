@@ -1,6 +1,6 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:audioplayers/audioplayers.dart';
 
 class AngryPage extends StatefulWidget {
   const AngryPage({super.key});
@@ -10,118 +10,52 @@ class AngryPage extends StatefulWidget {
 }
 
 class _AngryPageState extends State<AngryPage> {
+  // Existing variables
   final TextEditingController _reasonController = TextEditingController();
-  double angerLevel = 100; // Start with the maximum anger level (100%)
-  String motivationMessage = "Let's channel that anger into positive energy!";
-  String taskMessage = "Take 5 deep breaths!";
-  String funQuestion = "What helps you calm down when you're angry?";
-  String funAnswer = '';
-  bool isTaskCompleted = false;
+  double angerLevel = 100;
+  bool isAlcoholic = false;
+  bool isSmoker = false;
+  bool hasPoorSleep = false;
+  bool skipsExercise = false;
+  bool task1Completed = false;
+  bool task2Completed = false;
 
-  // Tracking user responses
-  String? userAngerReason = '';
-  bool? taskCompleted;
-  bool? questionAnswered;
+  // Motivational and advice variables
+  List<String> motivationalQuotes = [
+    "You’re stronger than you think!",
+    "Every storm runs out of rain. Stay strong!",
+    "Take it one day at a time, and you’ll get there.",
+    "Focus on the positives, and let go of the negatives.",
+    "Smiling is contagious—spread it around!",
+    "This is just a moment; happiness is on its way.",
+  ];
 
-  AudioPlayer _audioPlayer = AudioPlayer();
-  bool isPlaying = false;
+  List<String> adviceList = [
+    "Try journaling your thoughts to better understand your emotions.",
+    "A quick meditation can help calm your mind. Try it now!",
+    "Drink a glass of water—it’s a small, refreshing reset.",
+    "Engage in your favorite hobby for 15 minutes.",
+    "Talk to someone you trust. Sharing helps lighten the burden.",
+    "Take a moment to count 5 things you’re grateful for.",
+  ];
 
-  // Timer variables
-  int timerDuration = 5 * 60; // 5 minutes for deep breaths
-  int remainingTime = 5 * 60; // Remaining time for countdown timer
-  late AnimationController _controller;
+  String? selectedQuote;
+  String? selectedAdvice;
 
   @override
   void initState() {
     super.initState();
-    _loadAnswers();
-    _startBackgroundMusic(); // Start soothing background music
+    _generateMotivation();
   }
 
-  // Load saved responses from shared_preferences
-  Future<void> _loadAnswers() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
+  // Randomly pick a motivational quote and advice
+  void _generateMotivation() {
+    final random = Random();
     setState(() {
-      userAngerReason = prefs.getString('anger_reason');
-      taskCompleted = prefs.getBool('anger_task_completed') ?? false;
-      questionAnswered = prefs.getBool('anger_question_answered') ?? false;
-      funAnswer = prefs.getString('anger_fun_answer') ?? '';
-      angerLevel = prefs.getDouble('anger_level') ?? 100.0;
-      remainingTime = prefs.getInt('anger_timer') ?? 5 * 60;
+      selectedQuote =
+          motivationalQuotes[random.nextInt(motivationalQuotes.length)];
+      selectedAdvice = adviceList[random.nextInt(adviceList.length)];
     });
-  }
-
-  // Save answers to shared_preferences
-  Future<void> _saveAnswers() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setString('anger_reason', _reasonController.text);
-    prefs.setBool('anger_task_completed', isTaskCompleted);
-    prefs.setBool('anger_question_answered', questionAnswered ?? false);
-    prefs.setString('anger_fun_answer', funAnswer);
-    prefs.setDouble('anger_level', angerLevel);
-    prefs.setInt('anger_timer', remainingTime);
-  }
-
-  // Start soothing background music
-  void _startBackgroundMusic() async {
-    if (!isPlaying) {
-      await _audioPlayer.play(AssetSource('assets/soothing_sound.mp3'),
-          volume: 0.5);
-      setState(() {
-        isPlaying = true;
-      });
-    }
-  }
-
-  // Stop the background music
-  void _stopBackgroundMusic() async {
-    await _audioPlayer.stop();
-    setState(() {
-      isPlaying = false;
-    });
-  }
-
-  // Handle task completion
-  void _completeTask(String taskName) {
-    setState(() {
-      taskMessage = "$taskName task completed!";
-      isTaskCompleted = true;
-      // Reduce anger level based on the task completed
-      angerLevel -= 10; // Each task reduces anger by 10
-      _saveAnswers();
-    });
-  }
-
-  // Timer countdown
-  void _startTimer() {
-    setState(() {
-      remainingTime = timerDuration;
-    });
-    // Start a timer for deep breaths or other tasks
-    Future.delayed(Duration(seconds: remainingTime), () {
-      setState(() {
-        taskMessage = "Time's up! Great job on completing the task!";
-        isTaskCompleted = true;
-        angerLevel -= 20; // Reduce anger level after timer is done
-      });
-    });
-  }
-
-  // Handle answering the fun question
-  void _answerFunQuestion(String answer) {
-    setState(() {
-      funAnswer = answer;
-      questionAnswered = true;
-      motivationMessage =
-          "Good choice! Now let's keep that positive energy going!";
-      _saveAnswers();
-    });
-  }
-
-  @override
-  void dispose() {
-    _stopBackgroundMusic();
-    super.dispose();
   }
 
   @override
@@ -129,122 +63,162 @@ class _AngryPageState extends State<AngryPage> {
     return Scaffold(
       backgroundColor: Colors.red.shade100,
       appBar: AppBar(
-        title: const Text('Anger Management'),
+        title: const Text('Anger Management & Motivation'),
         backgroundColor: Colors.redAccent,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              "You're feeling Angry! Let's work through it.",
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 30),
-            if (userAngerReason == null || userAngerReason!.isEmpty)
+        padding: const EdgeInsets.all(16.0),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "You're feeling angry! Let's work through it.",
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 20),
+              // Reason for anger
               TextField(
                 controller: _reasonController,
                 decoration: const InputDecoration(
                   labelText: "What made you angry?",
                   border: OutlineInputBorder(),
-                  hintText: "Write your reason here",
                 ),
                 maxLines: 3,
               ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                if (_reasonController.text.isNotEmpty) {
+              const SizedBox(height: 20),
+              // Lifestyle factors
+              CheckboxListTile(
+                title: const Text("Are you an alcoholic?"),
+                value: isAlcoholic,
+                onChanged: (value) {
                   setState(() {
-                    userAngerReason = _reasonController.text;
-                    motivationMessage =
-                        "Thank you for sharing! Let's work through this together.";
-                    _saveAnswers();
-                  });
-                }
-              },
-              child: const Text('Submit Reason'),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              motivationMessage,
-              style: const TextStyle(fontSize: 18, color: Colors.black87),
-            ),
-            const SizedBox(height: 30),
-            Text(
-              taskMessage,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            if (!isTaskCompleted)
-              ElevatedButton(
-                onPressed: () => _completeTask("Breathing Exercise"),
-                child: const Text('Complete Task: Deep Breaths'),
-              ),
-            const SizedBox(height: 20),
-            if (!isTaskCompleted)
-              ElevatedButton(
-                onPressed: _startTimer,
-                child: const Text('Start Timer: 5-minute Breathing Exercise'),
-              ),
-            const SizedBox(height: 20),
-            if (!isTaskCompleted)
-              ElevatedButton(
-                onPressed: () =>
-                    _completeTask("Physical Activity (e.g., walk)"),
-                child: const Text('Complete Task: Take a Walk'),
-              ),
-            const SizedBox(height: 20),
-            if (!isTaskCompleted)
-              ElevatedButton(
-                onPressed: () => _completeTask("Mindfulness Meditation"),
-                child: const Text('Complete Task: Meditation'),
-              ),
-            const SizedBox(height: 30),
-            Text(
-              "Anger Level: ${(angerLevel).toStringAsFixed(1)}%",
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            Slider(
-              value: angerLevel,
-              min: 0,
-              max: 100,
-              divisions: 10,
-              label: "${angerLevel.toStringAsFixed(1)}%",
-              onChanged: (value) {
-                setState(() {
-                  angerLevel = value;
-                  _saveAnswers();
-                });
-              },
-            ),
-            const SizedBox(height: 30),
-            Text(
-              funQuestion,
-              style: const TextStyle(fontSize: 18, color: Colors.black87),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              onChanged: _answerFunQuestion,
-              decoration: const InputDecoration(
-                labelText: "Your answer",
-                border: OutlineInputBorder(),
-                hintText: "Share with us...",
-              ),
-            ),
-            const SizedBox(height: 30),
-            if (questionAnswered ?? false)
-              ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    motivationMessage =
-                        "You're doing great! Let's continue with the next step.";
+                    isAlcoholic = value!;
                   });
                 },
-                child: const Text('Next Step'),
               ),
-          ],
+              CheckboxListTile(
+                title: const Text("Do you smoke?"),
+                value: isSmoker,
+                onChanged: (value) {
+                  setState(() {
+                    isSmoker = value!;
+                  });
+                },
+              ),
+              CheckboxListTile(
+                title: const Text("Do you have poor sleep habits?"),
+                value: hasPoorSleep,
+                onChanged: (value) {
+                  setState(() {
+                    hasPoorSleep = value!;
+                  });
+                },
+              ),
+              CheckboxListTile(
+                title: const Text("Do you skip exercise?"),
+                value: skipsExercise,
+                onChanged: (value) {
+                  setState(() {
+                    skipsExercise = value!;
+                  });
+                },
+              ),
+              const SizedBox(height: 20),
+              // Tasks
+              CheckboxListTile(
+                title: const Text("Task 1: Take 5 deep breaths."),
+                value: task1Completed,
+                onChanged: (value) {
+                  setState(() {
+                    task1Completed = value!;
+                    if (value) angerLevel -= 10;
+                  });
+                },
+              ),
+              CheckboxListTile(
+                title: const Text("Task 2: Take a 5-minute walk."),
+                value: task2Completed,
+                onChanged: (value) {
+                  setState(() {
+                    task2Completed = value!;
+                    if (value) angerLevel -= 10;
+                  });
+                },
+              ),
+              const SizedBox(height: 20),
+              // Anger level slider
+              const Text(
+                "Adjust your anger level:",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              Slider(
+                value: angerLevel,
+                min: 0,
+                max: 100,
+                divisions: 10,
+                label: "${angerLevel.toStringAsFixed(1)}%",
+                onChanged: (value) {
+                  setState(() {
+                    angerLevel = value;
+                  });
+                },
+              ),
+              const SizedBox(height: 20),
+              Center(
+                child: ElevatedButton(
+                  onPressed: () {
+                    _generateMotivation();
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text("Your Path to Happiness"),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              "Here’s something to brighten your mood:",
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              selectedQuote ?? '',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontStyle: FontStyle.italic,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 20),
+                            const Text(
+                              "And here’s a helpful piece of advice:",
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              selectedAdvice ?? '',
+                              style: const TextStyle(fontSize: 16),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                            },
+                            child: const Text("Close"),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                  child: const Text("Get Motivated!"),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
