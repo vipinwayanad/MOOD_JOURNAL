@@ -1,9 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_project/Pages/AuthScreen.dart';
+import 'package:flutter_project/Pages/AuthService.dart';
 import 'package:flutter_project/Pages/angry_page.dart';
 import 'package:flutter_project/Pages/happy_page.dart';
 import 'package:flutter_project/Pages/sad_page.dart';
 
-void main() {
+// Firebase Configuration for Web
+const FirebaseOptions firebaseConfig = FirebaseOptions(
+  apiKey: "AIzaSyAkB2CTX2-BJf91BGTF_el24keAklaIR_Y",
+  authDomain: "mood-journal-bac33.firebaseapp.com",
+  projectId: "mood-journal-bac33",
+  storageBucket: "mood-journal-bac33.firebasestorage.app",
+  messagingSenderId: "803397693598",
+  appId: "1:803397693598:web:be1dac36f6b307c6b4cb8f",
+  measurementId: "G-B593BR7FKQ", // Optional for analytics
+);
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase with configuration for web
+  await Firebase.initializeApp(options: firebaseConfig);
+
   runApp(const MyApp());
 }
 
@@ -13,12 +32,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Mood Journal',
+      title: 'Mood Journal with Authentication',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const MoodSelectionPage(),
+      home: const AuthScreen(), // Start with the authentication screen
     );
   }
 }
@@ -34,6 +53,20 @@ class MoodSelectionPage extends StatelessWidget {
         title: const Text('Mood Journal'),
         centerTitle: true,
         backgroundColor: Colors.blueAccent,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await AuthService().logout(); // Logout user
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const MoodSelectionPage()),
+                (route) => false,
+              );
+            },
+          ),
+        ],
       ),
       body: const Center(
         child: MoodGrid(),
@@ -47,7 +80,6 @@ class MoodGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    var happyPage = HappyPage();
     return Padding(
       padding: const EdgeInsets.all(20.0),
       child: GridView.count(
@@ -55,12 +87,9 @@ class MoodGrid extends StatelessWidget {
         crossAxisSpacing: 20,
         mainAxisSpacing: 20,
         children: <Widget>[
-          _buildMoodTile(context, '😡', 'Angry',
-              AngryPage()), // Angry button navigates to AngryPage
-          _buildMoodTile(context, '😢', 'Sad',
-              SadPage()), // Sad button navigates to SadPage
-          _buildMoodTile(context, '😊', 'Happy',
-              HappyPage()), // Happy button navigates to HappyPage
+          _buildMoodTile(context, '😡', 'Angry', const AngryPage()),
+          _buildMoodTile(context, '😢', 'Sad', const SadPage()),
+          _buildMoodTile(context, '😊', 'Happy', const HappyPage()),
         ],
       ),
     );

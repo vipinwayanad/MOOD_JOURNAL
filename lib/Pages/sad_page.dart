@@ -70,9 +70,10 @@ class _SadPageState extends State<SadPage> {
                 onChanged: (value) {
                   setState(() {
                     task1Completed = value!;
-                    if (value)
+                    if (value) {
                       motivationMessage =
                           "You’re breathing deeply. Keep it up!";
+                    }
                   });
                 },
               ),
@@ -83,9 +84,10 @@ class _SadPageState extends State<SadPage> {
                 onChanged: (value) {
                   setState(() {
                     task2Completed = value!;
-                    if (value)
+                    if (value) {
                       motivationMessage =
                           "Music can calm the mind. You’re doing well!";
+                    }
                   });
                 },
               ),
@@ -96,9 +98,10 @@ class _SadPageState extends State<SadPage> {
                 onChanged: (value) {
                   setState(() {
                     task3Completed = value!;
-                    if (value)
+                    if (value) {
                       motivationMessage =
                           "Gratitude is a great way to uplift your spirit!";
+                    }
                   });
                 },
               ),
@@ -108,8 +111,9 @@ class _SadPageState extends State<SadPage> {
                 onChanged: (value) {
                   setState(() {
                     task4Completed = value!;
-                    if (value)
+                    if (value) {
                       motivationMessage = "A walk can help clear your mind!";
+                    }
                   });
                 },
               ),
@@ -119,9 +123,10 @@ class _SadPageState extends State<SadPage> {
                 onChanged: (value) {
                   setState(() {
                     task5Completed = value!;
-                    if (value)
+                    if (value) {
                       motivationMessage =
                           "Talking to a friend can bring comfort!";
+                    }
                   });
                 },
               ),

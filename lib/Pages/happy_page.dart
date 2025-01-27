@@ -1,11 +1,11 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class HappyPage extends StatefulWidget {
   const HappyPage({super.key});
 
   @override
-  // ignore: library_private_types_in_public_api
   _HappyPageState createState() => _HappyPageState();
 }
 
@@ -52,24 +52,42 @@ class _HappyPageState extends State<HappyPage> {
     _loadAnswers();
   }
 
-  // Load saved responses from shared_preferences
+  // Load saved responses from Firestore
   void _loadAnswers() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    setState(() {
-      userHappyReason = prefs.getString('happy_reason');
-      taskCompleted = prefs.getBool('happy_task_completed') ?? false;
-      questionAnswered = prefs.getBool('happy_question_answered') ?? false;
-      funAnswer = prefs.getString('happy_fun_answer') ?? '';
-    });
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      DocumentSnapshot snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('mood_journal')
+          .doc('happy_mood')
+          .get();
+
+      setState(() {
+        userHappyReason = snapshot['happy_reason'] ?? '';
+        taskCompleted = snapshot['task_completed'] ?? false;
+        questionAnswered = snapshot['question_answered'] ?? false;
+        funAnswer = snapshot['fun_answer'] ?? '';
+      });
+    }
   }
 
-  // Save answers to shared_preferences
+  // Save answers to Firestore
   void _saveAnswers() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setString('happy_reason', _reasonController.text);
-    prefs.setBool('happy_task_completed', isTaskCompleted);
-    prefs.setBool('happy_question_answered', questionAnswered);
-    prefs.setString('happy_fun_answer', funAnswer);
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('mood_journal')
+          .doc('happy_mood')
+          .set({
+        'happy_reason': _reasonController.text,
+        'task_completed': isTaskCompleted,
+        'question_answered': questionAnswered,
+        'fun_answer': funAnswer,
+      });
+    }
   }
 
   // Handle task completion
@@ -78,7 +96,7 @@ class _HappyPageState extends State<HappyPage> {
       isTaskCompleted = true;
       taskMessage =
           "Great job! You reflected on your accomplishments. Keep it up!";
-      _saveAnswers();
+      _saveAnswers(); // Save answers when task is completed
     });
   }
 
@@ -89,7 +107,7 @@ class _HappyPageState extends State<HappyPage> {
       questionAnswered = true;
       motivationMessage =
           "That's a wonderful way to spread joy! Keep that positivity flowing!";
-      _saveAnswers();
+      _saveAnswers(); // Save answers when fun question is answered
     });
   }
 
@@ -102,11 +120,9 @@ class _HappyPageState extends State<HappyPage> {
         backgroundColor: Colors.amberAccent,
       ),
       body: SingleChildScrollView(
-        // Wrap the entire body in a SingleChildScrollView
         padding: const EdgeInsets.all(20.0),
         child: Column(
-          mainAxisAlignment:
-              MainAxisAlignment.start, // Align the content to the top
+          mainAxisAlignment: MainAxisAlignment.start,
           children: [
             const Text(
               "You're feeling Happy! Let's keep that energy going.",
@@ -131,7 +147,7 @@ class _HappyPageState extends State<HappyPage> {
                     userHappyReason = _reasonController.text;
                     motivationMessage =
                         "Thank you for sharing! Let's keep the happiness going!";
-                    _saveAnswers();
+                    _saveAnswers(); // Save happiness reason
                   });
                 }
               },
@@ -187,7 +203,7 @@ class _HappyPageState extends State<HappyPage> {
             const SizedBox(height: 20),
             // Displaying activities
             ListView.builder(
-              shrinkWrap: true, // To prevent overflow and fit the content
+              shrinkWrap: true,
               itemCount: activities.length,
               itemBuilder: (context, index) {
                 return Card(
