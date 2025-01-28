@@ -1,12 +1,12 @@
 name: flutter_project
 description: "A new Flutter project."
 
-publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+publish_to: 'none'  # Remove this line if you wish to publish to pub.dev
 
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.6.1
+  sdk: ">=3.6.1 <4.0.0"  # Set a version range for the Flutter SDK to ensure compatibility
 
 dependencies:
   flutter:
@@ -21,6 +21,9 @@ dependencies:
   lottie: ^3.3.1
   cupertino_icons: ^1.0.8
   fl_chart: ^0.70.2
+  http: 1.3.0
+  url_launcher: ^6.1.5
+  flutter_web_auth: ^0.6.0
 
 dev_dependencies:
   flutter_test:
@@ -29,5 +32,5 @@ dev_dependencies:
 
 flutter:
   assets:
-    - assets/relaxing_animation.json
+    - assets/relaxing_animation.json  # Make sure the path is correct and file exists in your project
   uses-material-design: true

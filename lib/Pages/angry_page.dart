@@ -1,6 +1,9 @@
-import 'dart:math';
-
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_web_auth/flutter_web_auth.dart';
+import 'package:http/http.dart' as http;
+import 'dart:math';
+import 'package:url_launcher/url_launcher.dart';
 
 class AngryPage extends StatefulWidget {
   const AngryPage({super.key});
@@ -10,7 +13,6 @@ class AngryPage extends StatefulWidget {
 }
 
 class _AngryPageState extends State<AngryPage> {
-  // Existing variables
   final TextEditingController _reasonController = TextEditingController();
   double angerLevel = 100;
   bool isAlcoholic = false;
@@ -20,27 +22,14 @@ class _AngryPageState extends State<AngryPage> {
   bool task1Completed = false;
   bool task2Completed = false;
 
-  // Motivational and advice variables
-  List<String> motivationalQuotes = [
-    "You’re stronger than you think!",
-    "Every storm runs out of rain. Stay strong!",
-    "Take it one day at a time, and you’ll get there.",
-    "Focus on the positives, and let go of the negatives.",
-    "Smiling is contagious—spread it around!",
-    "This is just a moment; happiness is on its way.",
-  ];
-
-  List<String> adviceList = [
-    "Try journaling your thoughts to better understand your emotions.",
-    "A quick meditation can help calm your mind. Try it now!",
-    "Drink a glass of water—it’s a small, refreshing reset.",
-    "Engage in your favorite hobby for 15 minutes.",
-    "Talk to someone you trust. Sharing helps lighten the burden.",
-    "Take a moment to count 5 things you’re grateful for.",
-  ];
-
   String? selectedQuote;
   String? selectedAdvice;
+
+  final String clientId = "2fed2165f5de4973900d8d33d10000d3";
+  final String clientSecret = "f030551d371748c1a33b7d2b03f44fb1";
+  final String redirectUri = "musicapp://callback"; // Use your redirect URI
+
+  String? accessToken;
 
   @override
   void initState() {
@@ -48,14 +37,114 @@ class _AngryPageState extends State<AngryPage> {
     _generateMotivation();
   }
 
-  // Randomly pick a motivational quote and advice
-  void _generateMotivation() {
+  // Fetch motivational quote from the API
+  Future<String> fetchMotivationalQuote() async {
+    final response = await http
+        .get(Uri.parse('https://api.quotable.io/random?tags=inspire'));
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return data['content'];
+    } else {
+      throw Exception('Failed to load quote');
+    }
+  }
+
+  // Update the motivational quote and advice
+  Future<void> _generateMotivation() async {
+    try {
+      String quote = await fetchMotivationalQuote();
+      setState(() {
+        selectedQuote = quote;
+      });
+    } catch (e) {
+      setState(() {
+        selectedQuote = "Stay strong, better days are ahead!";
+      });
+    }
+
     final random = Random();
+    List<String> adviceList = [
+      "Try journaling your thoughts to better understand your emotions.",
+      "A quick meditation can help calm your mind. Try it now!",
+      "Drink a glass of water—it’s a small, refreshing reset.",
+      "Engage in your favorite hobby for 15 minutes.",
+      "Talk to someone you trust. Sharing helps lighten the burden.",
+      "Take a moment to count 5 things you’re grateful for.",
+    ];
+
     setState(() {
-      selectedQuote =
-          motivationalQuotes[random.nextInt(motivationalQuotes.length)];
       selectedAdvice = adviceList[random.nextInt(adviceList.length)];
     });
+  }
+
+  // Virtual Game to decrease anger (bubble popping)
+  void _playVirtualGame() {
+    setState(() {
+      if (angerLevel > 0) {
+        angerLevel -= 10; // Decrease anger level by 10 on each interaction
+      } else {
+        angerLevel = 0;
+      }
+    });
+  }
+
+  // Spotify Authentication and Play Music
+  Future<void> authenticateSpotify() async {
+    final String authUrl =
+        'https://accounts.spotify.com/authorize?response_type=code&client_id=$clientId&redirect_uri=$redirectUri&scope=user-library-read playlist-read-private';
+
+    try {
+      final result = await FlutterWebAuth.authenticate(
+          url: authUrl, callbackUrlScheme: "musicapp");
+
+      final Uri uri = Uri.parse(result);
+      final String? code = uri.queryParameters['code'];
+
+      if (code != null) {
+        final response = await http.post(
+          Uri.parse('https://accounts.spotify.com/api/token'),
+          headers: {
+            'Authorization':
+                'Basic ' + base64Encode(utf8.encode('$clientId:$clientSecret')),
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: {
+            'grant_type': 'authorization_code',
+            'code': code,
+            'redirect_uri': redirectUri,
+          },
+        );
+
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          setState(() {
+            accessToken = data['access_token'];
+          });
+        } else {
+          throw Exception('Failed to get access token');
+        }
+      }
+    } catch (e) {
+      setState(() {
+        accessToken = null; // Handle failed authentication
+      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Authentication Failed. Please try again.'),
+        backgroundColor: Colors.red,
+      ));
+    }
+  }
+
+  void _launchSpotifyPlayer(String playlistUrl) async {
+    final url = Uri.parse(playlistUrl);
+
+    // Checking if the link can be launched by the device
+    if (await canLaunch(url.toString())) {
+      await launch(url.toString()); // Launch Spotify playlist
+    } else {
+      throw 'Could not launch $url';
+    }
   }
 
   @override
@@ -87,7 +176,7 @@ class _AngryPageState extends State<AngryPage> {
                 maxLines: 3,
               ),
               const SizedBox(height: 20),
-              // Lifestyle factors
+              // Lifestyle factors (Checkboxes)
               CheckboxListTile(
                 title: const Text("Are you an alcoholic?"),
                 value: isAlcoholic,
@@ -166,6 +255,15 @@ class _AngryPageState extends State<AngryPage> {
                 },
               ),
               const SizedBox(height: 20),
+              // Virtual Game Section (Bubble Pop Game)
+              Center(
+                child: ElevatedButton(
+                  onPressed: _playVirtualGame,
+                  child: const Text("Pop a Bubble (Decrease Anger)"),
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Get Motivated Button
               Center(
                 child: ElevatedButton(
                   onPressed: () {
@@ -217,6 +315,25 @@ class _AngryPageState extends State<AngryPage> {
                   child: const Text("Get Motivated!"),
                 ),
               ),
+              const SizedBox(height: 20),
+              // Spotify Authentication and Play Music Button
+              Center(
+                child: ElevatedButton(
+                  onPressed: authenticateSpotify,
+                  child: const Text("Connect to Spotify"),
+                ),
+              ),
+              if (accessToken != null) ...[
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    String playlistUri =
+                        "spotify:playlist:26XqtARCz3j3L3ICTn42Dq"; // Replace with actual playlist URI
+                    _launchSpotifyPlayer(playlistUri);
+                  },
+                  child: const Text("Play Calming Music"),
+                ),
+              ],
             ],
           ),
         ),
