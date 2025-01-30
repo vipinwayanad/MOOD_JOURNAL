@@ -1,9 +1,46 @@
 import 'dart:convert';
-import 'package:flutter/material.dart';
-import 'package:flutter_web_auth/flutter_web_auth.dart';
-import 'package:http/http.dart' as http;
 import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
+
+class YouTubeService {
+  final String apiKey =
+      'YOUR_YOUTUBE_API_KEY'; // Replace with your actual API key
+
+  Future<List<String>> fetchRandomVideos(String mood) async {
+    String searchQuery = '';
+
+    switch (mood) {
+      case 'angry':
+        searchQuery = 'anger management';
+        break;
+      case 'happy':
+        searchQuery = 'motivational';
+        break;
+      case 'sad':
+        searchQuery = 'uplifting';
+        break;
+      default:
+        searchQuery = 'motivational';
+    }
+
+    final response = await http.get(Uri.parse(
+        'https://www.googleapis.com/youtube/v3/search?part=snippet&q=$searchQuery&key=$apiKey&type=video&maxResults=5'));
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      List<String> videoIds = [];
+
+      for (var item in data['items']) {
+        videoIds.add(item['id']['videoId']);
+      }
+      return videoIds;
+    } else {
+      throw Exception('Failed to load videos');
+    }
+  }
+}
 
 class AngryPage extends StatefulWidget {
   const AngryPage({super.key});
@@ -24,24 +61,33 @@ class _AngryPageState extends State<AngryPage> {
 
   String? selectedQuote;
   String? selectedAdvice;
-
-  final String clientId = "2fed2165f5de4973900d8d33d10000d3";
-  final String clientSecret = "f030551d371748c1a33b7d2b03f44fb1";
-  final String redirectUri = "musicapp://callback"; // Use your redirect URI
-
-  String? accessToken;
+  String? imageUrl;
+  final List<String> emotions = [];
 
   @override
   void initState() {
     super.initState();
     _generateMotivation();
+    _fetchMotivationalImage();
   }
 
-  // Fetch motivational quote from the API
+  Future<void> _fetchMotivationalImage() async {
+    const String accessKey =
+        'YOUR_UNSPLASH_ACCESS_KEY'; // Replace with your actual access key
+    final response = await http.get(Uri.parse(
+        'https://api.unsplash.com/photos/random?query=anger&client_id=$accessKey'));
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      setState(() {
+        imageUrl = data['urls']['regular'];
+      });
+    }
+  }
+
   Future<String> fetchMotivationalQuote() async {
     final response = await http
         .get(Uri.parse('https://api.quotable.io/random?tags=inspire'));
-
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       return data['content'];
@@ -50,7 +96,6 @@ class _AngryPageState extends State<AngryPage> {
     }
   }
 
-  // Update the motivational quote and advice
   Future<void> _generateMotivation() async {
     try {
       String quote = await fetchMotivationalQuote();
@@ -78,263 +123,405 @@ class _AngryPageState extends State<AngryPage> {
     });
   }
 
-  // Virtual Game to decrease anger (bubble popping)
   void _playVirtualGame() {
     setState(() {
       if (angerLevel > 0) {
-        angerLevel -= 10; // Decrease anger level by 10 on each interaction
+        angerLevel -= 10;
       } else {
         angerLevel = 0;
       }
     });
   }
 
-  // Spotify Authentication and Play Music
-  Future<void> authenticateSpotify() async {
-    final String authUrl =
-        'https://accounts.spotify.com/authorize?response_type=code&client_id=$clientId&redirect_uri=$redirectUri&scope=user-library-read playlist-read-private';
+  void _submitEmotions() {
+    // For demonstration purposes, just print emotions
+    print("User Emotions: $emotions");
 
-    try {
-      final result = await FlutterWebAuth.authenticate(
-          url: authUrl, callbackUrlScheme: "musicapp");
-
-      final Uri uri = Uri.parse(result);
-      final String? code = uri.queryParameters['code'];
-
-      if (code != null) {
-        final response = await http.post(
-          Uri.parse('https://accounts.spotify.com/api/token'),
-          headers: {
-            'Authorization':
-                'Basic ' + base64Encode(utf8.encode('$clientId:$clientSecret')),
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: {
-            'grant_type': 'authorization_code',
-            'code': code,
-            'redirect_uri': redirectUri,
-          },
-        );
-
-        if (response.statusCode == 200) {
-          final data = json.decode(response.body);
-          setState(() {
-            accessToken = data['access_token'];
-          });
-        } else {
-          throw Exception('Failed to get access token');
-        }
-      }
-    } catch (e) {
-      setState(() {
-        accessToken = null; // Handle failed authentication
-      });
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Authentication Failed. Please try again.'),
-        backgroundColor: Colors.red,
-      ));
-    }
-  }
-
-  void _launchSpotifyPlayer(String playlistUrl) async {
-    final url = Uri.parse(playlistUrl);
-
-    // Checking if the link can be launched by the device
-    if (await canLaunch(url.toString())) {
-      await launch(url.toString()); // Launch Spotify playlist
-    } else {
-      throw 'Could not launch $url';
-    }
+    // Here you would normally send the emotions to your database
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.red.shade100,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Anger Management & Motivation'),
         backgroundColor: Colors.redAccent,
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "You're feeling angry! Let's work through it.",
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 20),
-              // Reason for anger
-              TextField(
-                controller: _reasonController,
-                decoration: const InputDecoration(
-                  labelText: "What made you angry?",
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 20),
-              // Lifestyle factors (Checkboxes)
-              CheckboxListTile(
-                title: const Text("Are you an alcoholic?"),
-                value: isAlcoholic,
-                onChanged: (value) {
-                  setState(() {
-                    isAlcoholic = value!;
-                  });
-                },
-              ),
-              CheckboxListTile(
-                title: const Text("Do you smoke?"),
-                value: isSmoker,
-                onChanged: (value) {
-                  setState(() {
-                    isSmoker = value!;
-                  });
-                },
-              ),
-              CheckboxListTile(
-                title: const Text("Do you have poor sleep habits?"),
-                value: hasPoorSleep,
-                onChanged: (value) {
-                  setState(() {
-                    hasPoorSleep = value!;
-                  });
-                },
-              ),
-              CheckboxListTile(
-                title: const Text("Do you skip exercise?"),
-                value: skipsExercise,
-                onChanged: (value) {
-                  setState(() {
-                    skipsExercise = value!;
-                  });
-                },
-              ),
-              const SizedBox(height: 20),
-              // Tasks
-              CheckboxListTile(
-                title: const Text("Task 1: Take 5 deep breaths."),
-                value: task1Completed,
-                onChanged: (value) {
-                  setState(() {
-                    task1Completed = value!;
-                    if (value) angerLevel -= 10;
-                  });
-                },
-              ),
-              CheckboxListTile(
-                title: const Text("Task 2: Take a 5-minute walk."),
-                value: task2Completed,
-                onChanged: (value) {
-                  setState(() {
-                    task2Completed = value!;
-                    if (value) angerLevel -= 10;
-                  });
-                },
-              ),
-              const SizedBox(height: 20),
-              // Anger level slider
-              const Text(
-                "Adjust your anger level:",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 10),
-              Slider(
-                value: angerLevel,
-                min: 0,
-                max: 100,
-                divisions: 10,
-                label: "${angerLevel.toStringAsFixed(1)}%",
-                onChanged: (value) {
-                  setState(() {
-                    angerLevel = value;
-                  });
-                },
-              ),
-              const SizedBox(height: 20),
-              // Virtual Game Section (Bubble Pop Game)
-              Center(
-                child: ElevatedButton(
-                  onPressed: _playVirtualGame,
-                  child: const Text("Pop a Bubble (Decrease Anger)"),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (imageUrl != null)
+              Container(
+                height: 200,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(15),
+                  image: DecorationImage(
+                    image: NetworkImage(imageUrl!),
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
-              const SizedBox(height: 20),
-              // Get Motivated Button
-              Center(
-                child: ElevatedButton(
-                  onPressed: () {
-                    _generateMotivation();
-                    showDialog(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text("Your Path to Happiness"),
-                        content: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text(
-                              "Here’s something to brighten your mood:",
-                              style: TextStyle(fontWeight: FontWeight.bold),
+            const SizedBox(height: 20),
+            const Text(
+              "You're feeling angry! Let's work through it.",
+              style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.redAccent),
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: _reasonController,
+              decoration: InputDecoration(
+                labelText: "What made you angry?",
+                border: OutlineInputBorder(),
+                filled: true,
+                fillColor: Colors.grey.shade200,
+                contentPadding: const EdgeInsets.all(10),
+              ),
+              maxLines: 3,
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              "Describe your emotions:",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            _buildEmotionSurvey(),
+            const SizedBox(height: 20),
+            const Text(
+              "Lifestyle Check:",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            _buildLifestyleCheckboxes(),
+            const SizedBox(height: 20),
+            const Text(
+              "Tasks:",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            _buildTasks(),
+            const SizedBox(height: 20),
+            _buildAngerLevelSlider(),
+            const SizedBox(height: 20),
+            Center(
+              child: ElevatedButton(
+                onPressed: _playVirtualGame,
+                child: const Text("Pop a Bubble (Decrease Anger)"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Center(
+              child: ElevatedButton(
+                onPressed: () {
+                  _generateMotivation();
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text("Your Path to Happiness"),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            "Here’s something to brighten your mood:",
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            selectedQuote ?? '',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontStyle: FontStyle.italic,
                             ),
-                            const SizedBox(height: 10),
-                            Text(
-                              selectedQuote ?? '',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontStyle: FontStyle.italic,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 20),
-                            const Text(
-                              "And here’s a helpful piece of advice:",
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              selectedAdvice ?? '',
-                              style: const TextStyle(fontSize: 16),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                            },
-                            child: const Text("Close"),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 20),
+                          const Text(
+                            "And here’s a helpful piece of advice:",
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            selectedAdvice ?? '',
+                            style: const TextStyle(fontSize: 16),
+                            textAlign: TextAlign.center,
                           ),
                         ],
                       ),
-                    );
-                  },
-                  child: const Text("Get Motivated!"),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                          child: const Text("Close"),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                child: const Text("Get Motivated!"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
                 ),
               ),
-              const SizedBox(height: 20),
-              // Spotify Authentication and Play Music Button
-              Center(
-                child: ElevatedButton(
-                  onPressed: authenticateSpotify,
-                  child: const Text("Connect to Spotify"),
+            ),
+            const SizedBox(height: 20),
+            Center(
+              child: ElevatedButton(
+                onPressed: () {
+                  _submitEmotions();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AngryVideoPage(),
+                    ),
+                  );
+                },
+                child: const Text("Watch Motivational Video"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
                 ),
               ),
-              if (accessToken != null) ...[
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () {
-                    String playlistUri =
-                        "spotify:playlist:26XqtARCz3j3L3ICTn42Dq"; // Replace with actual playlist URI
-                    _launchSpotifyPlayer(playlistUri);
-                  },
-                  child: const Text("Play Calming Music"),
-                ),
-              ],
-            ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmotionSurvey() {
+    return Column(
+      children: [
+        CheckboxListTile(
+          title: const Text("Frustrated"),
+          value: emotions.contains("Frustrated"),
+          onChanged: (value) {
+            setState(() {
+              if (value == true)
+                emotions.add("Frustrated");
+              else
+                emotions.remove("Frustrated");
+            });
+          },
+        ),
+        CheckboxListTile(
+          title: const Text("Overwhelmed"),
+          value: emotions.contains("Overwhelmed"),
+          onChanged: (value) {
+            setState(() {
+              if (value == true)
+                emotions.add("Overwhelmed");
+              else
+                emotions.remove("Overwhelmed");
+            });
+          },
+        ),
+        CheckboxListTile(
+          title: const Text("Anxious"),
+          value: emotions.contains("Anxious"),
+          onChanged: (value) {
+            setState(() {
+              if (value == true)
+                emotions.add("Anxious");
+              else
+                emotions.remove("Anxious");
+            });
+          },
+        ),
+        CheckboxListTile(
+          title: const Text("Sad"),
+          value: emotions.contains("Sad"),
+          onChanged: (value) {
+            setState(() {
+              if (value == true)
+                emotions.add("Sad");
+              else
+                emotions.remove("Sad");
+            });
+          },
+        ),
+        CheckboxListTile(
+          title: const Text("Angry"),
+          value: emotions.contains("Angry"),
+          onChanged: (value) {
+            setState(() {
+              if (value == true)
+                emotions.add("Angry");
+              else
+                emotions.remove("Angry");
+            });
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLifestyleCheckboxes() {
+    return Column(
+      children: [
+        _customCheckbox("Are you an alcoholic?", isAlcoholic, (value) {
+          setState(() {
+            isAlcoholic = value!;
+          });
+        }),
+        _customCheckbox("Do you smoke?", isSmoker, (value) {
+          setState(() {
+            isSmoker = value!;
+          });
+        }),
+        _customCheckbox("Do you have poor sleep habits?", hasPoorSleep,
+            (value) {
+          setState(() {
+            hasPoorSleep = value!;
+          });
+        }),
+        _customCheckbox("Do you skip exercise?", skipsExercise, (value) {
+          setState(() {
+            skipsExercise = value!;
+          });
+        }),
+      ],
+    );
+  }
+
+  Widget _customCheckbox(String title, bool value, Function(bool?) onChanged) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 5),
+      elevation: 2,
+      child: CheckboxListTile(
+        title: Text(title),
+        value: value,
+        onChanged: onChanged,
+        activeColor: Colors.redAccent,
+        controlAffinity: ListTileControlAffinity.leading,
+      ),
+    );
+  }
+
+  Widget _buildTasks() {
+    return Column(
+      children: [
+        _taskCard("Task 1: Take 5 deep breaths.", task1Completed, (value) {
+          setState(() {
+            task1Completed = value!;
+            if (value) angerLevel -= 10;
+          });
+        }),
+        _taskCard("Task 2: Take a 5-minute walk.", task2Completed, (value) {
+          setState(() {
+            task2Completed = value!;
+            if (value) angerLevel -= 10;
+          });
+        }),
+        _taskCard("Task 3: Write down your feelings.", task1Completed, (value) {
+          setState(() {
+            task1Completed = value!;
+            if (value) angerLevel -= 10;
+          });
+        }),
+        _taskCard("Task 4: Listen to calming music.", task2Completed, (value) {
+          setState(() {
+            task2Completed = value!;
+            if (value) angerLevel -= 10;
+          });
+        }),
+      ],
+    );
+  }
+
+  Widget _taskCard(String title, bool completed, Function(bool?) onChanged) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 5),
+      elevation: 2,
+      child: CheckboxListTile(
+        title: Text(title),
+        value: completed,
+        onChanged: onChanged,
+        activeColor: Colors.green,
+        controlAffinity: ListTileControlAffinity.leading,
+      ),
+    );
+  }
+
+  Widget _buildAngerLevelSlider() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Adjust your anger level:",
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 10),
+        Slider(
+          value: angerLevel,
+          min: 0,
+          max: 100,
+          divisions: 10,
+          label: "${angerLevel.toStringAsFixed(1)}%",
+          onChanged: (value) {
+            setState(() {
+              angerLevel = value;
+            });
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class AngryVideoPage extends StatelessWidget {
+  const AngryVideoPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Watch Angry Management Videos'),
+        backgroundColor: Colors.redAccent,
+      ),
+      body: Center(
+        child: ElevatedButton(
+          onPressed: () async {
+            final youTubeService = YouTubeService();
+            try {
+              List<String> videoIds =
+                  await youTubeService.fetchRandomVideos('angry');
+              if (videoIds.isNotEmpty) {
+                final String videoUrl =
+                    'https://www.youtube.com/watch?v=${videoIds[0]}';
+                if (await canLaunch(videoUrl)) {
+                  await launch(videoUrl);
+                } else {
+                  throw 'Could not launch $videoUrl';
+                }
+              }
+            } catch (e) {
+              print('Error: $e'); // Handle errors
+            }
+          },
+          child: const Text('Click here to watch a video'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue,
+            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
           ),
         ),
       ),

@@ -5,7 +5,6 @@ import 'package:flutter_project/Pages/AuthService.dart';
 import 'package:flutter_project/Pages/angry_page.dart';
 import 'package:flutter_project/Pages/happy_page.dart';
 import 'package:flutter_project/Pages/sad_page.dart';
-import 'package:flutter_project/Pages/spotify_auth.dart';
 
 // Firebase Configuration for Web
 const FirebaseOptions firebaseConfig = FirebaseOptions(

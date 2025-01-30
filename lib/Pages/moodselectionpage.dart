@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'AuthService.dart';
-import 'angry_page.dart';
-import 'happy_page.dart';
-import 'sad_page.dart';
-import 'AuthScreen.dart';
+import 'package:flutter_project/Pages/AuthService.dart';
+import 'package:flutter_project/Pages/angry_page.dart';
+import 'package:flutter_project/Pages/happy_page.dart';
+import 'package:flutter_project/Pages/sad_page.dart';
+import 'package:flutter_project/Pages/AuthScreen.dart';
 
 class MoodSelectionPage extends StatelessWidget {
   const MoodSelectionPage({super.key});
@@ -41,31 +41,47 @@ class MoodGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GridView.count(
-      crossAxisCount: 3,
+      crossAxisCount: 2,
       crossAxisSpacing: 20,
       mainAxisSpacing: 20,
+      padding: const EdgeInsets.all(20),
       children: [
-        _buildMoodTile(context, '😡', 'Angry', const AngryPage()),
-        _buildMoodTile(context, '😢', 'Sad', const SadPage()),
-        _buildMoodTile(context, '😊', 'Happy', const HappyPage()),
+        _buildMoodTile(context, '😡', 'Angry', const AngryPage(), Colors.red),
+        _buildMoodTile(context, '😢', 'Sad', const SadPage(), Colors.blue),
+        _buildMoodTile(
+            context, '😊', 'Happy', const HappyPage(), Colors.yellow),
+        _buildMoodTile(
+            context, '😌', 'Relaxed', const HappyPage(), Colors.green),
       ],
     );
   }
 
-  Widget _buildMoodTile(
-      BuildContext context, String emoji, String label, Widget page) {
+  Widget _buildMoodTile(BuildContext context, String emoji, String label,
+      Widget page, Color color) {
     return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => page),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 50)),
-          const SizedBox(height: 10),
-          Text(label, style: const TextStyle(fontSize: 18)),
-        ],
+      onTap: () {
+        // Navigate to the corresponding page
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => page),
+        );
+      },
+      child: Card(
+        elevation: 4,
+        color: color.withOpacity(0.2),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 50)),
+            const SizedBox(height: 10),
+            Text(label,
+                style:
+                    const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+          ],
+        ),
       ),
     );
   }
