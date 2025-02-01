@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'dart:math';
+import 'package:fl_chart/fl_chart.dart';
 import 'dart:async';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AngryPage extends StatefulWidget {
   const AngryPage({super.key});
@@ -35,318 +35,273 @@ class _AngryPageState extends State<AngryPage> {
   Timer? _meditationTimer;
   int _meditationSeconds = 0;
 
-  // Random Quote of the Day
-  String _quoteOfTheDay = "";
-
-  // Task completion state
-  final Map<String, bool> _taskCompletionStatus = {
-    'Take Deep Breaths': false,
-    'Go for a Walk': false,
-    'Write in a Journal': false,
-    'Listen to Calming Music': false,
-    'Practice Gratitude': false,
-  };
-
-  // Math Game State
-  int _score = 0;
-  int _bestScore = 0;
-  int _num1 = 0;
-  int _num2 = 0;
-  String _operator = '+';
-  String _currentProblem = '';
-  bool _isGameActive = false;
-  Timer? _gameTimer;
-  int _timerSeconds = 4;
-  int _questionCount = 0;
-  bool _isGameOver = false;
-  List<int> _answerOptions = [];
-  int? _selectedAnswer;
-  int? _correctAnswer;
-
-  // YouTube API State
-  String _videoUrl = '';
-  String? _youtubeApiKey;
-
-  // Unsplash API State
-  String _imageUrl = '';
-  String? _unsplashApiKey;
-
   @override
   void initState() {
     super.initState();
-    _youtubeApiKey = dotenv.env['YOUTUBE_API_KEY'];
-    _unsplashApiKey = dotenv.env['UNSPLASH_API_KEY'];
-    _fetchRandomQuote();
-    _fetchRandomImage();
+    _fetchRandomAdvice();
   }
 
   @override
   void dispose() {
     _meditationTimer?.cancel();
-    _gameTimer?.cancel();
     super.dispose();
   }
 
-  // Fetch random quote from API // Ensure this import is present
-
-  Future<void> _fetchRandomQuote() async {
+  // Fetch random advice from API
+  Future<void> _fetchRandomAdvice() async {
     try {
       final response =
-          await http.get(Uri.parse('https://api.quotable.io/random'));
-
-      // Debug: Print the status code and response body
-      print('Status Code: ${response.statusCode}');
-      print('Response Body: ${response.body}');
-
+          await http.get(Uri.parse('https://api.adviceslip.com/advice'));
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         setState(() {
-          _quoteOfTheDay = data['content'];
-        });
-      } else {
-        // Handle non-200 status codes
-        print('Failed to fetch quote. Status Code: ${response.statusCode}');
-        setState(() {
-          _quoteOfTheDay = 'Failed to fetch quote. Please try again later.';
+          _randomAdvice = data['slip']['advice'];
         });
       }
     } catch (e) {
-      // Handle any exceptions
-      print('Error fetching quote: $e');
-      setState(() {
-        _quoteOfTheDay = 'Error fetching quote. Please check your connection.';
-      });
+      print('Error fetching advice: $e');
     }
   }
 
-  // Fetch random image from Unsplash
-  Future<void> _fetchRandomImage() async {
-    try {
-      final response = await http.get(Uri.parse(
-          'https://api.unsplash.com/photos/random?query=nature&client_id=$_unsplashApiKey'));
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        setState(() {
-          _imageUrl = data['urls']['regular'];
-        });
-      }
-    } catch (e) {
-      print('Error fetching image: $e');
-    }
+  // Fetch emotion history for graph
+  Future<List<DocumentSnapshot>> _fetchEmotionHistory() async {
+    QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+        .collection('emotional_tracking')
+        .orderBy('timestamp', descending: true)
+        .limit(7)
+        .get();
+
+    return querySnapshot.docs;
   }
 
-  // Meditation exercise
-  void _startMeditationExercise() {
-    setState(() {
-      _meditationSeconds = 0;
-    });
+  // Submit emotional state to Firestore
+  void _submitEmotionalState() {
+    Map<String, dynamic> emotionalData = {
+      'emotions': _emotionIntensity
+          .map((key, value) => MapEntry(key, value.toStringAsFixed(1))),
+      'copingMechanisms': _selectedCopingMechanisms,
+      'advice': _randomAdvice,
+      'timestamp': FieldValue.serverTimestamp(),
+    };
 
-    _meditationTimer = Timer.periodic(Duration(seconds: 1), (timer) {
-      setState(() {
-        _meditationSeconds++;
-      });
-    });
+    FirebaseFirestore.instance
+        .collection('emotional_tracking')
+        .add(emotionalData);
 
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Emotional state recorded successfully!'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  // Delete emotional tracking entry
+  void _deleteEmotionalEntry(String documentId) async {
+    await FirebaseFirestore.instance
+        .collection('emotional_tracking')
+        .doc(documentId)
+        .delete();
+
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text('Entry deleted successfully')));
+  }
+
+  // Emotion trend graph
+  // Replace the existing _buildEmotionTrendGraph() method with this:
+  Widget _buildEmotionTrendGraph() {
+    return FutureBuilder<List<DocumentSnapshot>>(
+      future: _fetchEmotionHistory(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return CircularProgressIndicator();
+
+        // Create bar groups for each emotion
+        List<BarChartGroupData> barGroups =
+            _emotionIntensity.keys.map((emotion) {
+          return BarChartGroupData(
+            x: _emotionIntensity.keys.toList().indexOf(emotion),
+            barRods: [
+              BarChartRodData(
+                toY: snapshot.data!.map((doc) {
+                      Map<String, dynamic> data =
+                          doc.data() as Map<String, dynamic>;
+                      return double.parse(data['emotions'][emotion] ?? '0.0');
+                    }).reduce((a, b) => a + b) /
+                    snapshot.data!.length,
+                color: _getEmotionColor(emotion),
+                width: 16,
+              )
+            ],
+          );
+        }).toList();
+
+        return BarChart(
+          BarChartData(
+            alignment: BarChartAlignment.center,
+            barGroups: barGroups,
+            titlesData: FlTitlesData(
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 40,
+                ),
+              ),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (double value, TitleMeta meta) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        _emotionIntensity.keys.toList()[value.toInt()],
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    );
+                  },
+                  reservedSize: 40,
+                ),
+              ),
+              topTitles: AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+              rightTitles: AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+            ),
+            borderData: FlBorderData(show: false),
+            gridData: FlGridData(show: false),
+          ),
+        );
+      },
+    );
+  }
+
+  // Meditation Timer Dialog
+  void _startMeditationTimer() {
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: Text('Meditation Timer'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                    '${_meditationSeconds ~/ 60}:${(_meditationSeconds % 60).toString().padLeft(2, '0')}'),
+                ElevatedButton(
+                  onPressed: () {
+                    if (_meditationTimer == null ||
+                        !_meditationTimer!.isActive) {
+                      _meditationTimer =
+                          Timer.periodic(Duration(seconds: 1), (timer) {
+                        setState(() {
+                          _meditationSeconds++;
+                        });
+                      });
+                    }
+                  },
+                  child: Text('Start'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    _meditationTimer?.cancel();
+                  },
+                  child: Text('Pause'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    _meditationTimer?.cancel();
+                    setState(() {
+                      _meditationSeconds = 0;
+                    });
+                  },
+                  child: Text('Reset'),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // Breathing Exercise Dialog
+  void _startBreathingExercise() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Meditation Exercise'),
+        title: Text('Breathing Exercise'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Meditate for 5 minutes.'),
-            Text('Time: $_meditationSeconds seconds'),
-            ElevatedButton(
-              onPressed: () {
-                _meditationTimer?.cancel();
-                print("Meditation completed");
-                Navigator.of(context).pop();
-              },
-              child: Text('Pause Meditation'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  _meditationSeconds = 0;
-                });
-                _meditationTimer?.cancel();
-                print("Meditation reset");
-                Navigator.of(context).pop();
-              },
-              child: Text('Reset Meditation'),
-            ),
+            Text('4-7-8 Breathing Technique'),
+            Text('1. Inhale for 4 seconds'),
+            Text('2. Hold breath for 7 seconds'),
+            Text('3. Exhale for 8 seconds'),
+            Text('Repeat 4 times'),
           ],
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('Close'),
+          ),
+        ],
       ),
     );
   }
 
-  // Physical Exercise section
-  void _completeExercise(String exercise) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('$exercise Exercise'),
-        content: ElevatedButton(
-          onPressed: () {
-            print('$exercise completed');
-            Navigator.of(context).pop();
+  // Emotional history list
+  Widget _buildEmotionalHistory() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('emotional_tracking')
+          .orderBy('timestamp', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return CircularProgressIndicator();
+
+        return ListView.builder(
+          shrinkWrap: true,
+          physics: NeverScrollableScrollPhysics(),
+          itemCount: snapshot.data!.docs.length,
+          itemBuilder: (context, index) {
+            var doc = snapshot.data!.docs[index];
+            return Dismissible(
+              key: Key(doc.id),
+              background: Container(color: Colors.red),
+              onDismissed: (direction) {
+                _deleteEmotionalEntry(doc.id);
+              },
+              child: ListTile(
+                title: Text('Emotional State'),
+                subtitle: Text('Recorded on: ${doc['timestamp']}'),
+                trailing: IconButton(
+                  icon: Icon(Icons.delete),
+                  onPressed: () => _deleteEmotionalEntry(doc.id),
+                ),
+              ),
+            );
           },
-          child: Text('Completed'),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  // Generate a random math problem
-  void _generateMathProblem() {
-    final random = Random();
-    final operators = ['+', '-', '*'];
-    _operator = operators[random.nextInt(operators.length)];
-
-    switch (_operator) {
-      case '+':
-        _num1 = random.nextInt(30) + 1; // 1-30
-        _num2 = random.nextInt(30) + 1; // 1-30
-        break;
-      case '-':
-        _num1 = random.nextInt(30) + 1; // 1-30
-        _num2 = random.nextInt(_num1) + 1; // Ensure no negative results
-        break;
-      case '*':
-        _num1 = random.nextInt(10) + 1; // 1-10
-        _num2 = random.nextInt(10) + 1; // 1-10
-        break;
-    }
-
-    // Calculate correct answer
-    _correctAnswer = _calculateCorrectAnswer();
-
-    // Generate random answer options
-    _answerOptions = [_correctAnswer!];
-    while (_answerOptions.length < 3) {
-      int randomAnswer = _correctAnswer! + random.nextInt(10) - 5;
-      if (randomAnswer != _correctAnswer &&
-          !_answerOptions.contains(randomAnswer)) {
-        _answerOptions.add(randomAnswer);
-      }
-    }
-    _answerOptions.shuffle();
-
-    setState(() {
-      _currentProblem = '$_num1 $_operator $_num2 = ?';
-      _timerSeconds = 4;
-      _isGameActive = true;
-      _isGameOver = false;
-      _selectedAnswer = null;
-    });
-
-    _startGameTimer();
-  }
-
-  // Calculate correct answer
-  int _calculateCorrectAnswer() {
-    switch (_operator) {
-      case '+':
-        return _num1 + _num2;
-      case '-':
-        return _num1 - _num2;
-      case '*':
-        return _num1 * _num2;
+  // Emotion color mapping
+  Color _getEmotionColor(String emotion) {
+    switch (emotion) {
+      case 'Frustration':
+        return Colors.red;
+      case 'Anger':
+        return Colors.redAccent;
+      case 'Stress':
+        return Colors.orange;
+      case 'Anxiety':
+        return Colors.blue;
       default:
-        return 0;
-    }
-  }
-
-  // Start the 4-second timer for the math game
-  void _startGameTimer() {
-    _gameTimer?.cancel();
-    _gameTimer = Timer.periodic(Duration(seconds: 1), (timer) {
-      setState(() {
-        if (_timerSeconds > 0) {
-          _timerSeconds--;
-        } else {
-          _isGameActive = false;
-          _gameTimer?.cancel();
-          _handleMissedQuestion();
-        }
-      });
-    });
-  }
-
-  // Handle user's answer selection
-  void _selectAnswer(int answer) {
-    setState(() {
-      _selectedAnswer = answer;
-    });
-
-    if (answer == _correctAnswer) {
-      _score++;
-    } else {
-      _score--;
-    }
-
-    Future.delayed(Duration(seconds: 1), () {
-      setState(() {
-        _questionCount++;
-        if (_questionCount >= 10) {
-          _endGame();
-        } else {
-          _generateMathProblem();
-        }
-      });
-    });
-  }
-
-  // Handle missed questions (beyond 4 seconds)
-  void _handleMissedQuestion() {
-    setState(() {
-      _score--;
-      _questionCount++;
-    });
-
-    if (_questionCount >= 10) {
-      _endGame();
-    } else {
-      _generateMathProblem();
-    }
-  }
-
-  // End the game
-  void _endGame() {
-    setState(() {
-      _isGameOver = true;
-      _isGameActive = false;
-      if (_score > _bestScore) {
-        _bestScore = _score;
-      }
-    });
-  }
-
-  // Restart the game
-  void _restartGame() {
-    setState(() {
-      _score = 0;
-      _questionCount = 0;
-      _isGameOver = false;
-    });
-    _generateMathProblem();
-  }
-
-  // Fetch a random YouTube video based on mood
-  Future<void> _fetchAngryMoodVideo() async {
-    try {
-      final response = await http.get(Uri.parse(
-          'https://www.googleapis.com/youtube/v3/search?part=snippet&q=calming+music&type=video&key=$_youtubeApiKey'));
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final videoId = data['items'][0]['id']['videoId'];
-        setState(() {
-          _videoUrl = 'https://www.youtube.com/watch?v=$videoId';
-        });
-      }
-    } catch (e) {
-      print('Error fetching YouTube video: $e');
+        return Colors.purple;
     }
   }
 
@@ -373,18 +328,23 @@ class _AngryPageState extends State<AngryPage> {
                   ],
                 ),
               ),
-              background: _imageUrl.isNotEmpty
-                  ? Image.network(
-                      _imageUrl,
-                      fit: BoxFit.cover,
-                    )
-                  : Container(),
+              background: Image.network(
+                'https://images.unsplash.com/photo-1579541671963-4b2ece8c2cfc',
+                fit: BoxFit.cover,
+              ),
             ),
           ),
           SliverPadding(
             padding: EdgeInsets.all(16.0),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
+                // Emotion Intensity Section
+                _buildSectionTitle('Emotion Intensity'),
+                ..._emotionIntensity.keys
+                    .map((emotion) => _buildEmotionSlider(emotion)),
+
+                SizedBox(height: 20),
+
                 // Coping Mechanisms Section
                 _buildSectionTitle('Coping Mechanisms'),
                 Wrap(
@@ -398,26 +358,6 @@ class _AngryPageState extends State<AngryPage> {
                               setState(() {
                                 if (selected) {
                                   _selectedCopingMechanisms.add(mechanism);
-                                  if (mechanism == 'Deep Breathing') {
-                                    showDialog(
-                                      context: context,
-                                      builder: (context) => AlertDialog(
-                                        title: Text('Deep Breathing Exercise'),
-                                        content: ElevatedButton(
-                                          onPressed: () {
-                                            print(
-                                                "Breathing exercise completed");
-                                            Navigator.of(context).pop();
-                                          },
-                                          child: Text('Completed'),
-                                        ),
-                                      ),
-                                    );
-                                  } else if (mechanism == 'Meditation') {
-                                    _startMeditationExercise();
-                                  } else if (mechanism == 'Physical Exercise') {
-                                    _completeExercise('Physical');
-                                  }
                                 } else {
                                   _selectedCopingMechanisms.remove(mechanism);
                                 }
@@ -429,203 +369,71 @@ class _AngryPageState extends State<AngryPage> {
 
                 SizedBox(height: 20),
 
-                // Random Quote of the Day
-                _buildSectionTitle('Quote of the Day'),
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Text(
-                    _quoteOfTheDay ?? 'Fetching quote...',
-                    style: TextStyle(fontStyle: FontStyle.italic),
-                  ),
+                // Emotion Trend Graph
+                _buildSectionTitle('Emotion Trend'),
+                SizedBox(
+                  height: 200,
+                  child: _buildEmotionTrendGraph(),
                 ),
 
-                // Tasks to Reduce Anger
-                _buildSectionTitle('Tasks to Reduce Anger'),
-                _buildTaskCard(
-                  'Take Deep Breaths',
-                  'Practice deep breathing for 5 minutes to calm your mind.',
-                  _taskCompletionStatus['Take Deep Breaths']!,
-                  () {
-                    setState(() {
-                      _taskCompletionStatus['Take Deep Breaths'] = true;
-                    });
-                  },
-                ),
-                _buildTaskCard(
-                  'Go for a Walk',
-                  'Take a 10-minute walk to clear your head and reduce stress.',
-                  _taskCompletionStatus['Go for a Walk']!,
-                  () {
-                    setState(() {
-                      _taskCompletionStatus['Go for a Walk'] = true;
-                    });
-                  },
-                ),
-                _buildTaskCard(
-                  'Write in a Journal',
-                  'Write down your thoughts and feelings to understand and manage your anger.',
-                  _taskCompletionStatus['Write in a Journal']!,
-                  () {
-                    setState(() {
-                      _taskCompletionStatus['Write in a Journal'] = true;
-                    });
-                  },
-                ),
-                _buildTaskCard(
-                  'Listen to Calming Music',
-                  'Listen to soothing music to help relax and reduce anger.',
-                  _taskCompletionStatus['Listen to Calming Music']!,
-                  () {
-                    setState(() {
-                      _taskCompletionStatus['Listen to Calming Music'] = true;
-                    });
-                  },
-                ),
-                _buildTaskCard(
-                  'Practice Gratitude',
-                  'List three things you are grateful for to shift your focus to positive thoughts.',
-                  _taskCompletionStatus['Practice Gratitude']!,
-                  () {
-                    setState(() {
-                      _taskCompletionStatus['Practice Gratitude'] = true;
-                    });
-                  },
+                // Additional Action Buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    ElevatedButton(
+                      onPressed: _startMeditationTimer,
+                      child: Text('Meditation Timer'),
+                    ),
+                    ElevatedButton(
+                      onPressed: _startBreathingExercise,
+                      child: Text('Breathing Exercise'),
+                    ),
+                  ],
                 ),
 
-                // Math Game Section
-                _buildSectionTitle('Math Game to Distract and Focus'),
+                // Random Advice Section
+                _buildSectionTitle('Daily Advice'),
                 Card(
-                  margin: EdgeInsets.symmetric(vertical: 8.0),
                   elevation: 4,
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      children: [
-                        // Best Score
-                        Text(
-                          'Best Score: $_bestScore',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
-                          ),
-                        ),
-                        SizedBox(height: 10),
-
-                        // Current Score
-                        Text(
-                          'Score: $_score',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: 10),
-
-                        // Game Over Message
-                        if (_isGameOver)
-                          Text(
-                            'Game Over!',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.red,
-                            ),
-                          ),
-                        SizedBox(height: 10),
-
-                        // Current Problem
-                        Text(
-                          _currentProblem,
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: 10),
-
-                        // Timer
-                        Text(
-                          'Time Left: $_timerSeconds seconds',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color:
-                                _timerSeconds <= 1 ? Colors.red : Colors.black,
-                          ),
-                        ),
-                        SizedBox(height: 10),
-
-                        // Answer Options
-                        Wrap(
-                          spacing: 8.0,
-                          children: _answerOptions.map((option) {
-                            return ElevatedButton(
-                              onPressed:
-                                  _isGameActive && _selectedAnswer == null
-                                      ? () => _selectAnswer(option)
-                                      : null,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: _selectedAnswer != null
-                                    ? (option == _correctAnswer
-                                        ? Colors.green
-                                        : (option == _selectedAnswer
-                                            ? Colors.red
-                                            : Colors.blue))
-                                    : Colors.blue,
-                              ),
-                              child: Text('$option'),
-                            );
-                          }).toList(),
-                        ),
-                        SizedBox(height: 10),
-
-                        // Game Controls
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            ElevatedButton(
-                              onPressed: _isGameActive ? null : _restartGame,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue,
-                                padding: EdgeInsets.symmetric(
-                                    horizontal: 20, vertical: 10),
-                              ),
-                              child: Text('Restart Game'),
-                            ),
-                            ElevatedButton(
-                              onPressed: _isGameActive
-                                  ? () {
-                                      setState(() {
-                                        _isGameActive = false;
-                                        _gameTimer?.cancel();
-                                      });
-                                    }
-                                  : null,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red,
-                                padding: EdgeInsets.symmetric(
-                                    horizontal: 20, vertical: 10),
-                              ),
-                              child: Text('Stop Game'),
-                            ),
-                          ],
-                        ),
-                      ],
+                    child: Text(
+                      _randomAdvice ?? 'Fetching advice...',
+                      style: TextStyle(
+                        fontStyle: FontStyle.italic,
+                        color: Colors.black87,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 ),
 
-                // YouTube Video Section
-                _buildSectionTitle('Calming Video'),
+                SizedBox(height: 20),
+
+                // Emotional History
+                _buildSectionTitle('Emotional History'),
+                _buildEmotionalHistory(),
+
+                SizedBox(height: 20),
+
+                // Submit Button
                 ElevatedButton(
-                  onPressed: _fetchAngryMoodVideo,
-                  child: Text('Watch Calming Video'),
-                ),
-                if (_videoUrl.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Text('Video URL: $_videoUrl'),
+                  onPressed: _submitEmotionalState,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepPurple,
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
                   ),
+                  child: Text(
+                    'Record Emotional State',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
               ]),
             ),
           ),
@@ -634,42 +442,48 @@ class _AngryPageState extends State<AngryPage> {
     );
   }
 
+  // Section title widget
   Widget _buildSectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.symmetric(vertical: 16.0),
       child: Text(
         title,
-        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        style: TextStyle(
+          fontSize: 22,
+          fontWeight: FontWeight.bold,
+          color: Colors.deepPurple,
+        ),
       ),
     );
   }
 
-  Widget _buildTaskCard(String title, String description, bool isCompleted,
-      VoidCallback onComplete) {
-    return Card(
-      margin: EdgeInsets.symmetric(vertical: 8.0),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 8.0),
-            Text(description),
-            SizedBox(height: 8.0),
-            ElevatedButton(
-              onPressed: isCompleted ? null : onComplete,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isCompleted ? Colors.green : Colors.blue,
-              ),
-              child: Text(isCompleted ? 'Completed' : 'Mark as Completed'),
-            ),
-          ],
+  // Emotion intensity slider
+  Widget _buildEmotionSlider(String emotion) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          emotion,
+          style: TextStyle(
+            fontSize: 16,
+            color: Colors.black87,
+          ),
         ),
-      ),
+        Slider(
+          value: _emotionIntensity[emotion] ?? 0.0,
+          min: 0.0,
+          max: 10.0,
+          divisions: 10,
+          label: (_emotionIntensity[emotion] ?? 0.0).toStringAsFixed(1),
+          activeColor: _getEmotionColor(emotion),
+          inactiveColor: _getEmotionColor(emotion).withOpacity(0.3),
+          onChanged: (double value) {
+            setState(() {
+              _emotionIntensity[emotion] = value;
+            });
+          },
+        ),
+      ],
     );
   }
 }

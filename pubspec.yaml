@@ -15,7 +15,11 @@ dependencies:
   audioplayers: ^6.1.0  # For playing soothing sounds
   flutter_hooks: ^0.20.5  # For smooth animations (optional)
   provider: ^6.0.5  # Optional state management for better control
+<<<<<<< HEAD
+  firebase_core: 3.10.1
+=======
   firebase_core: ^3.10.1
+>>>>>>> 5b1e89e385c9b419eb3a61bc019e6d1bcf059c7b
   firebase_auth: ^5.4.1
   cloud_firestore: ^5.6.2
   lottie: ^3.0.0
@@ -24,7 +28,10 @@ dependencies:
   http: ^1.3.0 
   url_launcher: ^6.1.10  # Updated version
   flutter_web_auth: ^0.6.0
+<<<<<<< HEAD
+=======
   flutter_dotenv: ^5.2.1
+>>>>>>> 5b1e89e385c9b419eb3a61bc019e6d1bcf059c7b
   syncfusion_flutter_charts: ^28.2.3
   speech_to_text: ^7.0.0
   permission_handler: ^11.3.1
@@ -32,6 +39,11 @@ dependencies:
   animated_text_kit: ^4.2.2
   flutter_staggered_animations: ^1.1.0
   glassmorphism: ^3.0.0
+<<<<<<< HEAD
+  table_calendar: ^3.0.3
+  flutter_dotenv: ^5.0.2
+=======
+>>>>>>> 5b1e89e385c9b419eb3a61bc019e6d1bcf059c7b
 
 dev_dependencies:
   flutter_test:
@@ -44,4 +56,8 @@ flutter:
     - assets/lottie/angry.json
     - assets/lottie/sad.json
     - assets/lottie/calm.json
+<<<<<<< HEAD
+    - assets/.env
+=======
+>>>>>>> 5b1e89e385c9b419eb3a61bc019e6d1bcf059c7b
   uses-material-design: true

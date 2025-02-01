@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_project/Pages/LoginScreen.dart'; // Corrected import
 import 'package:flutter_project/Pages/angry_page.dart';
 import 'package:flutter_project/Pages/happy_page.dart';
 import 'package:flutter_project/Pages/profile_page.dart';
@@ -19,21 +18,27 @@ class _MoodSelectionPageState extends State<MoodSelectionPage> {
   final List<MoodItem> _moods = [
     MoodItem(
       name: 'Happy',
-      icons: ['assets/lottie/calm.json'],
+      icon: 'assets/lottie/happy.json',
       color: Colors.yellow.shade700,
       page: HappyPage(),
     ),
     MoodItem(
       name: 'Sad',
-      icons: ['assets/lottie/sad.json'],
+      icon: 'assets/lottie/sad.json',
       color: Colors.blue.shade700,
       page: SadPage(),
     ),
     MoodItem(
       name: 'Angry',
-      icons: ['assets/lottie/angry.json'],
+      icon: 'assets/lottie/angry.json',
       color: Colors.red.shade700,
       page: AngryPage(),
+    ),
+    MoodItem(
+      name: 'Calm',
+      icon: 'assets/lottie/calm.json',
+      color: Colors.green.shade700,
+      page: HappyPage(),
     ),
   ];
 
@@ -46,6 +51,7 @@ class _MoodSelectionPageState extends State<MoodSelectionPage> {
   }
 
   Future<void> _fetchUserName() async {
+    // Implement user name fetching logic
     setState(() {
       userName = "Welcome, User";
     });
@@ -69,7 +75,10 @@ class _MoodSelectionPageState extends State<MoodSelectionPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Header Section
               _buildHeader(),
+
+              // Mood Grid
               Expanded(
                 child: GridView.builder(
                   padding: const EdgeInsets.all(16),
@@ -90,25 +99,6 @@ class _MoodSelectionPageState extends State<MoodSelectionPage> {
         ),
       ),
       floatingActionButton: _buildFloatingActionButton(),
-      appBar: AppBar(
-        backgroundColor: Colors.deepPurple.shade700, // Solid background color
-        elevation: 5, // Slight shadow for better visibility
-        actions: [
-          IconButton(
-            icon: Icon(Icons.exit_to_app,
-                color: Colors.white), // White color for the icon
-            onPressed: () {
-              // Navigate to the login screen
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => LoginScreen(onToggle: () {})),
-                (Route<dynamic> route) => false, // Remove all previous routes
-              );
-            },
-          ),
-        ],
-      ),
     );
   }
 
@@ -118,6 +108,7 @@ class _MoodSelectionPageState extends State<MoodSelectionPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Display greeting
           Text(
             userName,
             style: TextStyle(
@@ -173,12 +164,11 @@ class _MoodSelectionPageState extends State<MoodSelectionPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            for (var icon in mood.icons)
-              Lottie.asset(
-                icon,
-                width: 100,
-                height: 100,
-              ),
+            Lottie.asset(
+              mood.icon,
+              width: 120,
+              height: 120,
+            ),
             const SizedBox(height: 16),
             Text(
               mood.name,
@@ -197,6 +187,7 @@ class _MoodSelectionPageState extends State<MoodSelectionPage> {
   Widget _buildFloatingActionButton() {
     return FloatingActionButton(
       onPressed: () {
+        // Add additional functionality like journaling or mood tracking
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => ProfilePage()),
@@ -211,13 +202,13 @@ class _MoodSelectionPageState extends State<MoodSelectionPage> {
 // Mood Item Model
 class MoodItem {
   final String name;
-  final List<String> icons;
+  final String icon;
   final Color color;
   final Widget page;
 
   MoodItem({
     required this.name,
-    required this.icons,
+    required this.icon,
     required this.color,
     required this.page,
   });
